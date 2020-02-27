@@ -1,0 +1,9 @@
+/.idea
+/MNIST
+/PetImages
+1D_CNN_Dataset1.csv
+acc_vs_loss_graph.png
+MSR-LA - 3467.docx
+test.py
+function_plotting_script.py
+model.log
