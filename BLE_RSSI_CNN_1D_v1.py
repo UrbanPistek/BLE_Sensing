@@ -43,5 +43,6 @@ class RSSI_Data():
 
 #Look into making training and testing data has functions later
 
+#Pandas working 
 data = pd.read_csv('1D_CNN_Dataset1.csv')
 print(data)
