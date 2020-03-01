@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import time
 import pandas as pd
+from scipy import stats
 
 REBUILD_DATA = True
 
@@ -23,26 +24,36 @@ else:
     device = torch.device("cpu")
     print("Running on the CPU")
 
-class RSSI_Data():
-    dataset = []
-    testing_data = []
-    training_data = []
-    timesteps = 100
-    EMPTY = "Empty"
-    ONE_PERSON = "1_PERSON"
-    TWO_PERSONS = "2_PERSONS"
-    LABELS = {EMPTY: 0, ONE_PERSON: 1, TWO_PERSONS: 2}
-    empty_data_count = 0
-    one_person_data_count = 0
-    two_person_data_count = 0
+LABELS = {'Empty': 0,'One person': 1, 'Two or more people':2} #DNN needs numeric labels
+TIME_STEPS = 50
+STEP_INCREMET = 1
 
-    data = pd.DataFrame() #Possibly not necessary
+def load_dataset():
+    data = pd.read_csv('dataset1.csv')
 
-    def make_dataset(self):
-        data = pd.read_csv('1D_CNN_Dataset1.csv')
+def make_traing_data(df, time_steps, step):
+    N_FEATURES = 4
 
-#Look into making training and testing data has functions later
+    segments = []
+    labels = []
+    for i in range(0, len(df) - time_steps, step): #Verify
+        B1 = df['B1'].values[i: i + time_steps]
+        B2 = df['B2'].values[i: i + time_steps]
+        B3 = df['B3'].values[i: i + time_steps]
+        B4 = df['B4'].values[i: i + time_steps]
+        # Retrieve the most often used label in this segment
+        '''label = stats.mode(df[label_name][i: i + time_steps])[0][0] #modify label_name'''
+        segments.append([B1, B2, B3, B4])
+        labels.append(label)
+
+        # Bring the segments into a better shape
+        reshaped_segments = np.asarray(segments, dtype=np.float32).reshape(-1, time_steps, N_FEATURES) #Modify
+        labels = np.asarray(labels) #Modify
+
+    return reshaped_segments, labels
 
 #Pandas working 
-data = pd.read_csv('1D_CNN_Dataset1.csv')
-print(data)
+data = pd.read_csv('dataset1.csv')
+columns = data.columns
+print(data.head(5))
+print(len(data)) #3666

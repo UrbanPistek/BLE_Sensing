@@ -7,3 +7,5 @@ MSR-LA - 3467.docx
 test.py
 function_plotting_script.py
 model.log
+training_data.npy
+dataset1.csv
