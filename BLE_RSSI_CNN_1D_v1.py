@@ -60,9 +60,38 @@ def load_dataset():
 
     return data
 
-def make_traing_data(df, time_steps, train_len):
+def make_training_data_tensor(df, time_steps, train_len): #returns a list of randomly shuffled [matrix, label] elements
     N_FEATURES = 4
+    training_data = []
+    lab_val = []
+    result = []
+    data = []
+    for idx in tqdm(range(train_len)):
+        for i in range(time_steps): #Verify
+            B1 = df['B1'][(idx*time_steps) + i] #idx*time_steps + i
+            B2 = df['B2'][(idx*time_steps) + i]
+            B3 = df['B3'][(idx*time_steps) + i]
+            B4 = df['B4'][(idx*time_steps) + i]
+            print("Iteration: ", (idx*time_steps) + i, "[", df['B1'][(idx*time_steps) + i],df['B1'][(idx*time_steps) + i],df['B1'][(idx*time_steps) + i],df['B1'][(idx*time_steps) + i] ,"]",
+                "_",df['Label'][(idx*time_steps) + i]) #For debugging
+            data.append(np.array([B1, B2, B3, B4]))
 
+        print("STATS MODE VALE: ", stats.mode(df['Label'][(idx*time_steps): (idx*time_steps) + time_steps], axis=None)[0][0]) # For Debugging
+        label = stats.mode(df['Label'][(idx*time_steps): (idx*time_steps) + time_steps], axis=None)[0][0]
+        if label == 0:
+            result = np.array([1, 0, 0])
+        elif label == 1:
+            result = np.array([0, 1, 0])
+        elif label == 2:
+            result = np.array([0, 0, 1])
+
+        training_data.append([np.array(data), result])
+        np.random.shuffle(training_data)
+
+    return training_data
+
+def make_training_data(df, time_steps, train_len):
+    N_FEATURES = 4
     segments = []
     labels = []
     for idx in tqdm(range(train_len)):
@@ -72,9 +101,9 @@ def make_traing_data(df, time_steps, train_len):
             B3 = df['B3'].values[i: i + time_steps]
             B4 = df['B4'].values[i: i + time_steps]
             # Retrieve the most often used label in this segment
-            label = stats.mode(df['Label'][i: i + time_steps])[0][0] #modify label_name
+            label = stats.mode(df['Label'][i: i + time_steps])[0][0] #STATS MODE WAS MAKING ALL THE RESULTS ZERO
             segments.append([B1, B2, B3, B4])
-            labels.append(label)
+            labels.append(label) #Verify how the output is being produced
 
             # Bring the segments into a better shape
             reshaped_segments = np.asarray(segments, dtype=np.float64).reshape(-1, time_steps, N_FEATURES) #Modify
@@ -84,10 +113,52 @@ def make_traing_data(df, time_steps, train_len):
 
 #Pandas working 
 data = load_dataset()
-print(data.head(5))
 #print(len(data)) #3666
+#data.to_pickle("rssi_dataset1.pkl")
 
-X, y = make_traing_data(data, TIME_STEPS, TOTAL_LEN)
+#data = pd.read_pickle("rssi_dataset1.pkl") #Read from pickle
+print(data.head(5))
+print("Data Label Value Ranges")
+print(data['Label'][0:3])
+print(data['Label'][1500:1503])
+print(data['Label'][3000:3003])
+
+X, y = make_training_data(data, TIME_STEPS, TOTAL_LEN) #Create function to shuffle the data in chunks of TIME_STEPS
+#print(X[0:3])
+#print(y[0:3])
+
+print("=================================================================")
+testing = make_training_data_tensor(data, TIME_STEPS, TOTAL_LEN)
+print("*********** TESTING *************")
+print("Label:", data['Label'][0])
+print(testing[0])
+print("****************************************")
+print("Label", data['Label'][3000])
+print(len(testing))
+print(testing[60])
+print("****************************************")
+print("Label", data['Label'][3200])
+print(testing[64])
+print("*********** TESTING *************")
+for i in range(len(testing)):
+    print(i, " : ", testing[i][1])
+
+print("TESTING FOR TRAIN_X AND TRAIN_Y")
+
+def slice_data(testing):
+    test_X = []
+    test_Y = []
+    for i in range(len(testing)):
+        test_X.append(testing[i][0])
+        test_Y.append(testing[i][1])
+    return test_X, test_Y
+
+test_X, test_Y = slice_data(testing)
+
+print("Inputs: ", test_X[0:3])
+print("Outputs: ", test_Y[0:3])
+print("==============================================")
+
 INPUT_SHAPE = NUM_PARAMETERS*TIME_STEPS
 NUM_RESULTS = 3
 
@@ -129,23 +200,22 @@ model_m.add(Dense(100, activation='relu'))
 model_m.add(Flatten())
 model_m.add(Dense(NUM_RESULTS, activation='softmax'))
 print(model_m.summary())
-   =========================================== OLD ========================================= '''
+   =========================================== OLD ========================================= # Add comment to here
 
 def create_model():
     model_c = Sequential()
-    model_c.add(Reshape((TIME_STEPS, 4), input_shape=(INPUT_SHAPE,)))
-    model_c.add(Conv1D(100, 10, activation='relu', input_shape=(TIME_STEPS, 4)))
-    model_c.add(Conv1D(100, 10, activation='relu'))
-    model_c.add(MaxPooling1D(3))
-    model_c.add(Conv1D(160, 10, activation='relu'))
-    model_c.add(Conv1D(160, 10, activation='relu', padding="same"))
-    model_c.add(GlobalAveragePooling1D())
+    model_c.add(Reshape((TIME_STEPS, NUM_PARAMETERS), input_shape=(INPUT_SHAPE,)))
+    model_c.add(Conv1D(64, 3, activation='relu', input_shape=(TIME_STEPS, NUM_PARAMETERS)))
+    model_c.add(Conv1D(64, 3, activation='relu'))
     model_c.add(Dropout(0.5))
+    model_c.add(MaxPooling1D(2))
+    model_c.add(Flatten())
+    model_c.add(Dense(100, activation='relu'))
     model_c.add(Dense(NUM_RESULTS, activation='softmax'))
     print(model_c.summary())
 
     return model_c
-
+# ================================ Commented Out for Now =======================
 model_c = create_model()
 
 callbacks_list = [
@@ -156,7 +226,7 @@ callbacks_list = [
 ]
 
 model_c.compile(loss='categorical_crossentropy',
-                optimizer='adam', metrics=['accuracy'])
+                optimizer='adam', metrics=['accuracy']) #Check different ways of calculating loss
 
 # Hyper-parameters
 BATCH_SIZE = 400
@@ -169,7 +239,7 @@ history = model_c.fit(train_X,
                       epochs=EPOCHS,
                       callbacks=callbacks_list,
                       validation_split=0.2,
-                      verbose=1)
+                      verbose=1) #Check that the validation split is not splitting the data in weird ways -> shuffle the data in batches of 50
 
 plt.figure(figsize=(6, 4))
 plt.plot(history.history['accuracy'], 'r', label='Accuracy of training data')
@@ -190,4 +260,4 @@ max_y_pred_train = np.argmax(y_pred_train, axis=1)
 #print(classification_report(train_y, max_y_pred_train))
 
 #Something appears to be wrong with val_accuracy
-
+'''
