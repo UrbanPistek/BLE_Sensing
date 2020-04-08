@@ -1,28 +1,16 @@
 from __future__ import print_function
 import keras
-import matplotlib
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten, Reshape, Conv1D, MaxPooling1D, GlobalAveragePooling1D
-from keras.layers import Conv2D, MaxPooling2D
 from keras.utils import np_utils
-
 import numpy as np
 from tqdm import tqdm
 import torch
 import pandas as pd
 from scipy import stats
 from matplotlib import pyplot as plt
-
-import sklearn
-from sklearn import metrics
-from sklearn.metrics import classification_report
-from sklearn import preprocessing
-
-import scipy
-import seaborn as sns
-from IPython.display import display, HTML
-
 import os
+import random
 #Optimize to run on the GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Just disables the warning, doesn't enable AVX/FMA
 
@@ -40,6 +28,7 @@ ONE_PERSON = 1
 TWO_PLUS_PEOPLE = 2
 LABELS = [EMPTY, ONE_PERSON, TWO_PLUS_PEOPLE] #DNN needs numeric labels
 TIME_STEPS = 50
+STEP_DISTANCE = 50 #If equal to TIME_STEPS there is no overlap in data
 TOTAL_LEN = 72
 TRAIN_LEN = 60 #Train Dataset length (number of time matrices)
 TEST_LEN = 12 #Test Dataset length (number of time matrices)
@@ -61,84 +50,38 @@ def load_dataset():
 
     return data
 
-#Modify to make like original sample 
-def make_training_data_tensor(df, time_steps, step): #returns a list of randomly shuffled [matrix, label] elements
+def make_training_data_tensor(df, time_steps, train_len): #returns a list of randomly shuffled [matrix, label] elements
+    training_data = []
     result = []
     data = []
-    for i in range(0, len(df) - time_steps, step): #Verify
-        B1 = df['B1'][i: i + time_steps]
-        B2 = df['B2'][i: i + time_steps]
-        B3 = df['B3'][i: i + time_steps]
-        B4 = df['B4'][i: i + time_steps]
-        label = stats.mode(df['Label'][i: i + time_steps], axis=None)[0][0]
-        data.append([B1, B2, B3, B4])
-        result.append(label)
+    for idx in tqdm(range(train_len)):
+        for i in range(time_steps): #Verify
+            B1 = df['B1'][(idx*time_steps) + i] #idx*time_steps + i
+            B2 = df['B2'][(idx*time_steps) + i]
+            B3 = df['B3'][(idx*time_steps) + i]
+            B4 = df['B4'][(idx*time_steps) + i]
+            print("Iteration: ", (idx*time_steps) + i, "[",
+                  df['B1'][(idx*time_steps) + i],
+                  df['B1'][(idx*time_steps) + i],
+                  df['B1'][(idx*time_steps) + i],
+                  df['B1'][(idx*time_steps) + i] ,"]",
+                "_",df['Label'][(idx*time_steps) + i]) #For debugging
+            data.append([B1, B2, B3, B4])
 
-        '''if label == 0:
+        print("STATS MODE VALE: ", stats.mode(df['Label'][(idx*time_steps): (idx*time_steps) + time_steps], axis=None)[0][0]) # For Debugging
+        label = stats.mode(df['Label'][(idx*time_steps): (idx*time_steps) + time_steps], axis=None)[0][0]
+        if label == 0:
             result = [1, 0, 0]
         elif label == 1:
             result = [0, 1, 0]
         elif label == 2:
-            result = [0, 0, 1]'''
+            result = [0, 0, 1]
 
-    training_data = [data, result]
-    np.random.shuffle(training_data)
+        training_data.append([data, result])
+        np.random.shuffle(training_data)
 
     return training_data
 
-def make_training_data(df, time_steps, train_len):
-    segments = []
-    labels = []
-    for idx in tqdm(range(train_len)):
-        for i in range(time_steps*idx, time_steps*(idx+1)): #Verify
-            B1 = df['B1'].values[i: i + time_steps]
-            B2 = df['B2'].values[i: i + time_steps]
-            B3 = df['B3'].values[i: i + time_steps]
-            B4 = df['B4'].values[i: i + time_steps]
-            # Retrieve the most often used label in this segment
-            label = stats.mode(df['Label'][i: i + time_steps])[0][0] #STATS MODE WAS MAKING ALL THE RESULTS ZERO
-            segments.append([B1, B2, B3, B4])
-            labels.append(label) #Verify how the output is being produced
-
-            # Bring the segments into a better shape
-            reshaped_segments = np.asarray(segments, dtype=np.float64).reshape(-1, time_steps, N_FEATURES) #Modify
-            value = np.asarray(labels) #Modify
-
-    return reshaped_segments, value
-
-#Pandas working 
-data = load_dataset()
-#print(len(data)) #3666
-#data.to_pickle("rssi_dataset1.pkl")
-
-'''#data = pd.read_pickle("rssi_dataset1.pkl") #Read from pickle
-print(data.head(5))
-print("Data Label Value Ranges")
-print(data['Label'][0:3])
-print(data['Label'][1500:1503])
-print(data['Label'][3000:3003])'''
-
-X, y = make_training_data(data, TIME_STEPS, TOTAL_LEN) #Create function to shuffle the data in chunks of TIME_STEPS
-#print(X[0:3])
-#print(y[0:3])
-
-print("=================================================================")
-testing = make_training_data_tensor(data, TIME_STEPS, TIME_STEPS)
-'''print("*********** TESTING *************")
-print("Label:", data['Label'][0])
-print(testing[0])
-print("****************************************")
-print("Label", data['Label'][3000])
-print(len(testing))
-print(testing[60])
-print("****************************************")
-print("Label", data['Label'][3200])
-print(testing[64])
-print("*********** TESTING *************")
-for i in range(len(testing)):
-    print(i, " : ", testing[i][1])
-
-print("TESTING FOR TRAIN_X AND TRAIN_Y")'''
 
 def slice_data(testing):
     X = []
@@ -147,15 +90,39 @@ def slice_data(testing):
         X.append(testing[i][0])
         Y.append(testing[i][1])
 
-    test_X = np.asarray(X, dtype=np.float32).reshape(-1, TIME_STEPS, NUM_PARAMETERS)
+    test_X = np.asarray(X, dtype=np.float).reshape(-1, TIME_STEPS, NUM_PARAMETERS)
     test_Y = np.asarray(Y)
     return test_X, test_Y
 
-test_X, test_Y = slice_data(testing)
 
-'''print("Inputs: ", test_X[0:3])
-print("Outputs: ", test_Y[0:3])
-print("==============================================")'''
+def make_training_data(df, time_steps, step):
+    segments = []
+    labels = []
+    for i in tqdm(range(0, len(df) - time_steps, step)):
+        B1 = df['B1'].values[i: i + time_steps]
+        B2 = df['B2'].values[i: i + time_steps]
+        B3 = df['B3'].values[i: i + time_steps]
+        B4 = df['B4'].values[i: i + time_steps]
+        # Retrieve the most often used label in this segment
+        label = stats.mode(df['Label'][i: i + time_steps])[0][0]
+        segments.append([B1, B2, B3, B4])
+        labels.append(label)
+
+    # Bring the segments into a better shape
+    reshaped_segments = np.asarray(segments, dtype=np.float64).reshape(-1, time_steps, N_FEATURES) #Modify
+    value = np.asarray(labels) #Modify
+
+    return reshaped_segments, value
+
+data = load_dataset()
+#print(len(data)) #3666
+#data.to_pickle("rssi_dataset1.pkl")
+#data = pd.read_pickle("rssi_dataset1.pkl") #Read from pickle
+
+X, y = make_training_data(data, TIME_STEPS, STEP_DISTANCE)
+print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Checking Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+print("Input Data", X)
+print("Result Data",y)
 
 INPUT_SHAPE = NUM_PARAMETERS*TIME_STEPS
 NUM_RESULTS = 3
@@ -188,20 +155,30 @@ def prep_data(X, y):
 
     return train_X, train_y
 
-#train_X, train_y = prep_data(X, y)
+def shuffle_data(X, y):
+    print("Object_Type_X: ", type(X))
+    print("Object_Type_y: ", type(y))
+    c = list(zip(X, y))
+    random.shuffle(c)
+    X, y = zip(*c)
+    print("After Shuffle: ")
+    print("Object_Type_X: ", type(X))
+    print("Object_Type_y: ", type(y))
+    return X, y
 
-train_X, train_y = prep_data(test_X, test_Y)
+train_X, train_y = shuffle_data(X, y)
+print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Checking Training Data after Shuffle >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+print("Train X [0]: ", train_X[0])
+print("Train y [0]: ", train_y[0])
+print("Train X: ", train_X)
+print("Train y: ", train_y)
 
-''' =========================================== OLD =========================================
-model_m = Sequential()
-model_m.add(Reshape((TIME_STEPS, 4), input_shape=(INPUT_SHAPE,)))
-model_m.add(Dense(100, activation='relu'))
-model_m.add(Dense(100, activation='relu'))
-model_m.add(Dense(100, activation='relu'))
-model_m.add(Flatten())
-model_m.add(Dense(NUM_RESULTS, activation='softmax'))
-print(model_m.summary())
-   =========================================== OLD ========================================= # Add comment to here'''
+train_X, train_y = prep_data(train_X, train_y)
+print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Checking Training Data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+print("Train X [0]: ", train_X[0])
+print("Train y [0]: ", train_y[0])
+print("Train X: ", train_X)
+print("Train y: ", train_y)
 
 def create_model():
     model_c = Sequential()
@@ -259,4 +236,3 @@ y_pred_train = model_c.predict(train_X)
 # Take the class with the highest probability from the train predictions
 max_y_pred_train = np.argmax(y_pred_train, axis=1)
 #print(classification_report(train_y, max_y_pred_train))
-
