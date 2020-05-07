@@ -161,6 +161,8 @@ def shuffle_data(X, y):
     c = list(zip(X, y))
     random.shuffle(c)
     X, y = zip(*c)
+    X = np.asarray(X)
+    y = np.asarray(y)
     print("After Shuffle: ")
     print("Object_Type_X: ", type(X))
     print("Object_Type_y: ", type(y))
@@ -216,7 +218,7 @@ history = model_c.fit(train_X,
                       batch_size=BATCH_SIZE,
                       epochs=EPOCHS,
                       callbacks=callbacks_list,
-                      validation_split=0.2,
+                      validation_split=0.3,
                       verbose=1) #Check that the validation split is not splitting the data in weird ways -> shuffle the data in batches of 50
 
 plt.figure(figsize=(6, 4))
