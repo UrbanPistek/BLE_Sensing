@@ -27,11 +27,11 @@ EMPTY = 0
 ONE_PERSON = 1
 TWO_PLUS_PEOPLE = 2
 LABELS = [EMPTY, ONE_PERSON, TWO_PLUS_PEOPLE] #DNN needs numeric labels
-TIME_STEPS = 50
-STEP_DISTANCE = 50 #If equal to TIME_STEPS there is no overlap in data
-TOTAL_LEN = 72
-TRAIN_LEN = 60 #Train Dataset length (number of time matrices)
-TEST_LEN = 12 #Test Dataset length (number of time matrices)
+TIME_STEPS = 300 #Originally 50
+STEP_DISTANCE = 25 #If equal to TIME_STEPS there is no overlap in data #Originally 50
+TOTAL_LEN = 144 #Originally 72
+TRAIN_LEN = 100 #Train Dataset length (number of time matrices) #Originally 60
+TEST_LEN = 44 #Test Dataset length (number of time matrices) #Originally 12
 NUM_PARAMETERS = 4 #Number of parameters per timestep
 N_FEATURES = 4
 
@@ -197,20 +197,22 @@ def create_model():
     return model_c
 # ================================ Commented Out for Now =======================
 model_c = create_model()
-
+callbacks_list = []
+'''
 callbacks_list = [
     keras.callbacks.ModelCheckpoint(
         filepath='best_model.{epoch:02d}-{val_loss:.2f}.h5',
-        monitor='val_loss', save_best_only=True),
-    keras.callbacks.EarlyStopping(monitor='accuracy', patience=1) #Change to monitor='accuracy' if errors
+        monitor='val_accuracy', save_best_only=True),
+    keras.callbacks.EarlyStopping(monitor='accuracy', patience=50) #Change to monitor='accuracy' if errors
 ]
-
+'''
+opt = keras.optimizers.Adam(learning_rate=0.0001)
 model_c.compile(loss='categorical_crossentropy',
-                optimizer='adam', metrics=['accuracy']) #Check different ways of calculating loss
+                optimizer= opt, metrics=['accuracy']) #Check different ways of calculating loss
 
 # Hyper-parameters
-BATCH_SIZE = 400
-EPOCHS = 50
+BATCH_SIZE = 50 #Check what this is
+EPOCHS = 1000
 
 # Enable validation to use ModelCheckpoint and EarlyStopping callbacks.
 history = model_c.fit(train_X,
@@ -218,7 +220,7 @@ history = model_c.fit(train_X,
                       batch_size=BATCH_SIZE,
                       epochs=EPOCHS,
                       callbacks=callbacks_list,
-                      validation_split=0.3,
+                      validation_split=0.4,
                       verbose=1) #Check that the validation split is not splitting the data in weird ways -> shuffle the data in batches of 50
 
 plt.figure(figsize=(6, 4))
