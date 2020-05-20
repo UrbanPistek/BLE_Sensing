@@ -8,5 +8,4 @@ test.py
 function_plotting_script.py
 model.log
 training_data.npy
-dataset1.csv
 rssi_dataset1.pkl
