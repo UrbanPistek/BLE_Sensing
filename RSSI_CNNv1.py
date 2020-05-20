@@ -27,8 +27,8 @@ EMPTY = 0
 ONE_PERSON = 1
 TWO_PLUS_PEOPLE = 2
 LABELS = [EMPTY, ONE_PERSON, TWO_PLUS_PEOPLE] #DNN needs numeric labels
-TIME_STEPS = 300 #Originally 50
-STEP_DISTANCE = 25 #If equal to TIME_STEPS there is no overlap in data #Originally 50
+TIME_STEPS = 300 #Originally 50 #optimize
+STEP_DISTANCE = 25 #If equal to TIME_STEPS there is no overlap in data #Originally 50 #optimize
 TOTAL_LEN = 144 #Originally 72
 TRAIN_LEN = 100 #Train Dataset length (number of time matrices) #Originally 60
 TEST_LEN = 44 #Test Dataset length (number of time matrices) #Originally 12
@@ -36,7 +36,7 @@ NUM_PARAMETERS = 4 #Number of parameters per timestep
 N_FEATURES = 4
 
 def load_dataset():
-    data = pd.read_csv('dataset1.csv')
+    data = pd.read_csv('dataset2.csv') #optimize
     # Normalize the Data - Note Data is all negative so dividing by istelf twice will make it positive
     data['B1'] = data['B1'] / data['B1'].min()
     data['B2'] = data['B2'] / data['B2'].min()
@@ -98,6 +98,7 @@ def slice_data(testing):
 def make_training_data(df, time_steps, step):
     segments = []
     labels = []
+    #added to(device) to see if preformance improves
     for i in tqdm(range(0, len(df) - time_steps, step)):
         B1 = df['B1'].values[i: i + time_steps]
         B2 = df['B2'].values[i: i + time_steps]
@@ -183,14 +184,18 @@ print("Train X: ", train_X)
 print("Train y: ", train_y)
 
 def create_model():
+    #modified from original
     model_c = Sequential()
     model_c.add(Reshape((TIME_STEPS, NUM_PARAMETERS), input_shape=(INPUT_SHAPE,)))
-    model_c.add(Conv1D(64, 3, activation='relu', input_shape=(TIME_STEPS, NUM_PARAMETERS)))
-    model_c.add(Conv1D(64, 3, activation='relu'))
+    model_c.add(Conv1D(100, 10, activation='relu', input_shape=(TIME_STEPS, NUM_PARAMETERS)))
+    model_c.add(Conv1D(100, 100, activation='relu'))
+    model_c.add(MaxPooling1D(3))
+    model_c.add(Conv1D(160, 10, activation='relu'))
+    model_c.add(Conv1D(160, 10, activation='relu'))
+    model_c.add(GlobalAveragePooling1D())
     model_c.add(Dropout(0.5))
-    model_c.add(MaxPooling1D(2))
-    model_c.add(Flatten())
-    model_c.add(Dense(100, activation='relu'))
+    #model_c.add(Flatten())
+    #model_c.add(Dense(100, activation='relu'))
     model_c.add(Dense(NUM_RESULTS, activation='softmax'))
     print(model_c.summary())
 
@@ -206,13 +211,13 @@ callbacks_list = [
     keras.callbacks.EarlyStopping(monitor='accuracy', patience=50) #Change to monitor='accuracy' if errors
 ]
 '''
-opt = keras.optimizers.Adam(learning_rate=0.0001)
+opt = keras.optimizers.Adam(learning_rate=0.0001) #optimize, best around 0.0001
 model_c.compile(loss='categorical_crossentropy',
                 optimizer= opt, metrics=['accuracy']) #Check different ways of calculating loss
 
 # Hyper-parameters
-BATCH_SIZE = 50 #Check what this is
-EPOCHS = 1000
+BATCH_SIZE = 25 #optimize, BEST is 25
+EPOCHS = 600 #optimize, best 300
 
 # Enable validation to use ModelCheckpoint and EarlyStopping callbacks.
 history = model_c.fit(train_X,
@@ -226,8 +231,8 @@ history = model_c.fit(train_X,
 plt.figure(figsize=(6, 4))
 plt.plot(history.history['accuracy'], 'r', label='Accuracy of training data')
 plt.plot(history.history['val_accuracy'], 'b', label='Accuracy of validation data')
-plt.plot(history.history['loss'], 'r--', label='Loss of training data')
-plt.plot(history.history['val_loss'], 'b--', label='Loss of validation data')
+plt.plot(history.history['loss'], 'g', label='Loss of training data')
+plt.plot(history.history['val_loss'], 'y', label='Loss of validation data')
 plt.title('Model Accuracy and Loss')
 plt.ylabel('Accuracy and Loss')
 plt.xlabel('Training Epoch')
