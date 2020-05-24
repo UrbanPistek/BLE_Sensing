@@ -30,15 +30,15 @@ EMPTY = 0
 ONE_PERSON = 1
 TWO_PLUS_PEOPLE = 2
 LABELS = [EMPTY, ONE_PERSON, TWO_PLUS_PEOPLE] #DNN needs numeric labels
-TIME_STEPS = 100 #Originally 50 #optimized 300
-STEP_DISTANCE = 20 #If equal to TIME_STEPS there is no overlap in data #Originally 50 #optimized 25
+TIME_STEPS = 200 #Originally 50 #optimized 300
+STEP_DISTANCE = 25 #If equal to TIME_STEPS there is no overlap in data #Originally 50 #optimized 25
 TOTAL_LEN = 144 #Originally 72
 TRAIN_LEN = 100 #Train Dataset length (number of time matrices) #Originally 60
 TEST_LEN = 44 #Test Dataset length (number of time matrices) #Originally 12
 NUM_PARAMETERS = 4 #Number of parameters per timestep
 N_FEATURES = 4
 DATASET = "dataset2"
-MODEL = "ker100"
+MODEL = "model2_ker100_val0.3_opt"
 
 def load_dataset():
     data = pd.read_csv('dataset2.csv') #optimize, best dataset = dataset2
@@ -208,21 +208,18 @@ def create_model():
 # ================================ Training the Model =====================================
 model_c = create_model()
 callbacks_list = []
-'''
+
 callbacks_list = [
-    keras.callbacks.ModelCheckpoint(
-        filepath='best_model.{epoch:02d}-{val_loss:.2f}.h5',
-        monitor='val_accuracy', save_best_only=True)
-    #,keras.callbacks.EarlyStopping(monitor='accuracy', patience=50) #Change to monitor='accuracy' if errors
+    keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=200) #Change to monitor='accuracy' if errors
 ]
-'''
+
 opt = keras.optimizers.Adam(learning_rate=0.0001) #optimize, best around 0.0001
 model_c.compile(loss='categorical_crossentropy',
                 optimizer= opt, metrics=['accuracy']) #Check different ways of calculating loss
 
 # Hyper-parameters
-BATCH_SIZE = 10 #optimize, BEST is 25
-EPOCHS = 400 #optimize, best 600
+BATCH_SIZE = 20 #optimize, BEST is 25
+EPOCHS = 500 #optimize, best 600
 
 # Enable validation to use ModelCheckpoint and EarlyStopping callbacks.
 history = model_c.fit(train_X,

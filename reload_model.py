@@ -6,9 +6,10 @@ import numpy as np
 import random
 import os
 from keras.utils import np_utils
+from matplotlib import pyplot as plt
 
-TIME_STEPS = 100 #change based on training
-STEP_DISTANCE = 20 #change based on training
+TIME_STEPS = 200 #change based on training
+STEP_DISTANCE = 10 #change based on training
 NUM_PARAMETERS = 4
 N_FEATURES = 4
 INPUT_SHAPE = NUM_PARAMETERS*TIME_STEPS
@@ -71,12 +72,47 @@ def shuffle_data(X, y):
 
     return X, y
 
-data = load_dataset()
-X, y = make_training_data(data, TIME_STEPS, STEP_DISTANCE)
-train_X, train_y = shuffle_data(X, y)
-train_X, train_y = prep_data(train_X, train_y)
+def run_steps():
+    scores = []
+    model = keras.models.load_model('model_epochs175_batch25_time200_step20dataset2_ker100_100_drop_val0.25.h5')
+    model.summary()
+    max_value = 0
 
-model = keras.models.load_model('model_epochs400_batch10_time100_step20dataset2.h5')
-model.summary()
-score = model.evaluate(train_X, train_y, verbose = 0)
-print("Score: ", "%s: %.2f%%" % (model.metrics_names[1], score[1]*100))
+    for idx in tqdm(range(100)): #change to match TIME_STEPS
+        data = load_dataset()
+        X, y = make_training_data(data, TIME_STEPS, idx+1)
+        train_X, train_y = shuffle_data(X, y)
+        train_X, train_y = prep_data(train_X, train_y)
+        score = model.evaluate(train_X, train_y, verbose = 0)
+        scores.append(score[1])
+
+        if max_value < scores[idx]:
+            max_value = scores[idx]
+
+    plt.plot(scores)
+    plt.title('Out of Sample accuracy versus Step Distance')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Step Distance')
+    plt.show()
+    print("Max Value: ", max_value)
+
+    return scores
+
+def get_score():
+    data = load_dataset()
+    X, y = make_training_data(data, TIME_STEPS, STEP_DISTANCE)
+    train_X, train_y = shuffle_data(X, y)
+    train_X, train_y = prep_data(train_X, train_y)
+
+    model = keras.models.load_model('model_epochs500_batch25_time200_step20dataset2_ker100_100_drop_val0.25.h5')
+    model.summary()
+    score = model.evaluate(train_X, train_y, verbose = 0)
+    print(score)
+    print("Score: ", "%s: %.2f%%" % (model.metrics_names[1], score[1]*100))
+
+#get_score()
+acc = run_steps()
+print(acc)
+acc_df = pd.DataFrame(acc)
+#print(acc_df)
+#print("Average: ", acc_df['0'].mean()) #get mean value
