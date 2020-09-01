@@ -1,6 +1,6 @@
 # Project Details
 
-###Summary: 
+### Summary: 
 #####
 The project objective was to develop a system for detecting human presence 
 using BLE technology. The ruvvi tags were used as the BLE device and the 
